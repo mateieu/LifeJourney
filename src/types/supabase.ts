@@ -6,134 +6,110 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
       health_activities: {
         Row: {
+          id: string;
+          user_id: string;
           activity_type: string;
+          value: number;
+          notes: string | null;
           completed_at: string | null;
           created_at: string;
-          id: string;
-          notes: string | null;
-          user_id: string | null;
-          value: number;
+          updated_at: string | null;
         };
         Insert: {
+          id?: string;
+          user_id: string;
           activity_type: string;
+          value: number;
+          notes?: string | null;
           completed_at?: string | null;
           created_at?: string;
-          id?: string;
-          notes?: string | null;
-          user_id?: string | null;
-          value: number;
+          updated_at?: string | null;
         };
         Update: {
+          id?: string;
+          user_id?: string;
           activity_type?: string;
+          value?: number;
+          notes?: string | null;
           completed_at?: string | null;
           created_at?: string;
-          id?: string;
-          notes?: string | null;
-          user_id?: string | null;
-          value?: number;
+          updated_at?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "health_activities_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "users";
-            referencedColumns: ["user_id"];
-          },
-        ];
       };
       health_goals: {
         Row: {
-          created_at: string;
-          current_value: number | null;
-          goal_type: string;
           id: string;
-          start_date: string | null;
-          status: string | null;
-          target_date: string | null;
+          user_id: string;
+          goal_type: string;
           target_value: number;
-          updated_at: string;
-          user_id: string | null;
+          current_value: number | null;
+          target_date: string | null;
+          status: string | null;
+          start_date: string | null;
+          created_at: string;
+          updated_at: string | null;
         };
         Insert: {
-          created_at?: string;
-          current_value?: number | null;
-          goal_type: string;
           id?: string;
-          start_date?: string | null;
-          status?: string | null;
-          target_date?: string | null;
+          user_id: string;
+          goal_type: string;
           target_value: number;
-          updated_at?: string;
-          user_id?: string | null;
+          current_value?: number | null;
+          target_date?: string | null;
+          status?: string | null;
+          start_date?: string | null;
+          created_at?: string;
+          updated_at?: string | null;
         };
         Update: {
-          created_at?: string;
-          current_value?: number | null;
-          goal_type?: string;
           id?: string;
-          start_date?: string | null;
-          status?: string | null;
-          target_date?: string | null;
+          user_id?: string;
+          goal_type?: string;
           target_value?: number;
-          updated_at?: string;
-          user_id?: string | null;
+          current_value?: number | null;
+          target_date?: string | null;
+          status?: string | null;
+          start_date?: string | null;
+          created_at?: string;
+          updated_at?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "health_goals_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "users";
-            referencedColumns: ["user_id"];
-          },
-        ];
       };
       health_streaks: {
         Row: {
-          created_at: string;
-          current_streak: number | null;
           id: string;
-          last_activity_date: string | null;
-          longest_streak: number | null;
+          user_id: string;
           streak_type: string;
-          updated_at: string;
-          user_id: string | null;
+          current_streak: number | null;
+          longest_streak: number | null;
+          last_activity_date: string | null;
+          created_at: string;
+          updated_at: string | null;
         };
         Insert: {
-          created_at?: string;
-          current_streak?: number | null;
           id?: string;
-          last_activity_date?: string | null;
-          longest_streak?: number | null;
+          user_id: string;
           streak_type: string;
-          updated_at?: string;
-          user_id?: string | null;
+          current_streak?: number | null;
+          longest_streak?: number | null;
+          last_activity_date?: string | null;
+          created_at?: string;
+          updated_at?: string | null;
         };
         Update: {
-          created_at?: string;
-          current_streak?: number | null;
           id?: string;
-          last_activity_date?: string | null;
-          longest_streak?: number | null;
+          user_id?: string;
           streak_type?: string;
-          updated_at?: string;
-          user_id?: string | null;
+          current_streak?: number | null;
+          longest_streak?: number | null;
+          last_activity_date?: string | null;
+          created_at?: string;
+          updated_at?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "health_streaks_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "users";
-            referencedColumns: ["user_id"];
-          },
-        ];
       };
       health_suggestions: {
         Row: {
@@ -446,3 +422,7 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
     ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never;
+
+export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
+export type NewRecord<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
+export type UpdateRecord<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']

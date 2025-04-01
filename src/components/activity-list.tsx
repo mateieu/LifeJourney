@@ -1,4 +1,25 @@
+import { format, formatDistance } from "date-fns";
 import { Tables } from "@/types/supabase";
+import {
+  Activity,
+  BarChart,
+  Droplets,
+  Moon,
+  Edit,
+  Clock,
+  Bike,
+  Dumbbell,
+  Footprints,
+  Waves,
+  PersonStanding
+} from "lucide-react";
+
+// Custom running icon using footprints
+const Running = () => <Footprints className="h-5 w-5 -rotate-45" />;
+// Yoga icon
+const Yoga = () => <PersonStanding className="h-5 w-5" />;
+// Brain icon for meditation
+const Brain = () => <Activity className="h-5 w-5" />;
 
 type Activity = Tables<"health_activities">;
 
@@ -7,89 +28,113 @@ interface ActivityListProps {
 }
 
 export function ActivityList({ activities }: ActivityListProps) {
-  const formatActivityType = (type: string) => {
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  };
-
-  const getUnitLabel = (type: string) => {
-    switch (type) {
-      case "walking":
-        return "steps";
-      case "running":
-        return "km";
-      case "cycling":
-        return "km";
-      case "swimming":
-        return "minutes";
-      case "workout":
-        return "minutes";
-      case "meditation":
-        return "minutes";
-      case "water":
-        return "glasses";
-      case "sleep":
-        return "hours";
-      default:
-        return "";
-    }
-  };
-
   const getActivityIcon = (type: string) => {
     switch (type) {
       case "walking":
-        return "🚶";
+        return { icon: <Footprints className="h-5 w-5" />, color: "bg-green-100 text-green-600" };
       case "running":
-        return "🏃";
+        return { icon: <Running />, color: "bg-orange-100 text-orange-600" };
       case "cycling":
-        return "🚴";
+        return { icon: <Bike className="h-5 w-5" />, color: "bg-purple-100 text-purple-600" };
       case "swimming":
-        return "🏊";
-      case "workout":
-        return "💪";
+        return { icon: <Waves className="h-5 w-5" />, color: "bg-blue-100 text-blue-600" };
+      case "yoga":
+        return { icon: <Yoga />, color: "bg-pink-100 text-pink-600" };
       case "meditation":
-        return "🧘";
+        return { icon: <Brain />, color: "bg-violet-100 text-violet-600" };
+      case "strength":
+        return { icon: <Dumbbell className="h-5 w-5" />, color: "bg-red-100 text-red-600" };
       case "water":
-        return "💧";
+        return { icon: <Droplets className="h-5 w-5" />, color: "bg-cyan-100 text-cyan-600" };
       case "sleep":
-        return "😴";
+        return { icon: <Moon className="h-5 w-5" />, color: "bg-indigo-100 text-indigo-600" };
       default:
-        return "📝";
+        return { icon: <Activity className="h-5 w-5" />, color: "bg-gray-100 text-gray-600" };
+    }
+  };
+
+  const getActivityTitle = (type: string) => {
+    switch (type) {
+      case "walking":
+        return "Walking";
+      case "running":
+        return "Running";
+      case "cycling":
+        return "Cycling";
+      case "swimming":
+        return "Swimming";
+      case "yoga":
+        return "Yoga";
+      case "meditation":
+        return "Meditation";
+      case "strength":
+        return "Strength Training";
+      case "water":
+        return "Water Intake";
+      case "sleep":
+        return "Sleep";
+      default:
+        return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+  };
+
+  const getValueLabel = (type: string, value: number) => {
+    switch (type) {
+      case "walking":
+        return `${value} steps`;
+      case "running":
+      case "cycling":
+        return `${value} km`;
+      case "swimming":
+        return `${value} m`;
+      case "yoga":
+      case "meditation":
+      case "strength":
+        return `${value} min`;
+      case "water":
+        return `${value} glasses`;
+      case "sleep":
+        return `${value} hours`;
+      default:
+        return `${value}`;
     }
   };
 
   return (
     <div className="space-y-4">
-      {activities.map((activity) => (
-        <div
-          key={activity.id}
-          className="bg-card rounded-lg p-4 border shadow-sm"
-        >
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg">
-                {getActivityIcon(activity.activity_type)}
-              </div>
-              <div>
-                <h4 className="font-medium">
-                  {formatActivityType(activity.activity_type)}
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  {activity.value} {getUnitLabel(activity.activity_type)}
+      {activities.map((activity) => {
+        const { icon, color } = getActivityIcon(activity.activity_type);
+        return (
+          <div key={activity.id} className="bg-white rounded-lg border p-4">
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-full ${color}`}>{icon}</div>
+              <div className="flex-1">
+                <div className="flex justify-between">
+                  <h3 className="font-medium">
+                    {getActivityTitle(activity.activity_type)}
+                  </h3>
+                  <span className="text-sm text-muted-foreground">
+                    {activity.completed_at && 
+                      formatDistance(
+                        new Date(activity.completed_at),
+                        new Date(),
+                        { addSuffix: true }
+                      )}
+                  </span>
+                </div>
+                <p className="text-lg font-semibold mt-1">
+                  {getValueLabel(activity.activity_type, activity.value)}
                 </p>
+                {activity.notes && (
+                  <p className="text-sm text-muted-foreground mt-2 border-t pt-2">
+                    {activity.notes}
+                  </p>
+                )}
               </div>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {activity.completed_at &&
-                new Date(activity.completed_at).toLocaleDateString()}
             </div>
           </div>
-          {activity.notes && (
-            <div className="mt-3 pl-13 text-sm text-muted-foreground">
-              <p className="ml-10">{activity.notes}</p>
-            </div>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

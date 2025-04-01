@@ -2,7 +2,7 @@
 
 import { encodedRedirect } from "@/utils/utils";
 import { redirect } from "next/navigation";
-import { createClient } from "../../supabase/server";
+import { createClient } from "@/utils/supabase/server";
 
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
@@ -237,11 +237,11 @@ export const updateGoalAction = async (formData: FormData) => {
     return encodedRedirect(
       "error",
       "/dashboard/goals",
-      "Failed to update goal. Please try again.",
+      "Failed to update goal. Please try again."
     );
   }
 
-  return redirect("/dashboard/goals");
+  return { success: true };
 };
 
 // Activity Tracking Actions

@@ -1,38 +1,82 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import DashboardNavbar from "@/components/dashboard-navbar";
-import { createClient } from "../../../../supabase/server";
-import { redirect } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
 import { SubscriptionCheck } from "@/components/subscription-check";
 import { Button } from "@/components/ui/button";
 import { ActivitySquare, BarChart, Calendar, PlusCircle } from "lucide-react";
 import { ActivityForm } from "@/components/activity-form";
 import { ActivityList } from "@/components/activity-list";
 import { StreakDisplay } from "@/components/streak-display";
+import { Tables } from "@/types/supabase";
+import { User } from '@supabase/supabase-js';
 
-export default async function TrackerPage() {
-  const supabase = await createClient();
+type Activity = Tables<"health_activities">;
+type Streak = Tables<"health_streaks">;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function TrackerPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [streaks, setStreaks] = useState<Streak[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  if (!user) {
-    return redirect("/sign-in");
-  }
+  useEffect(() => {
+    async function fetchData() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        router.push('/sign-in');
+        return;
+      }
+      
+      setUser(user);
+      
+      // Fetch activities
+      const { data: activitiesData, error: activitiesError } = await supabase
+        .from('health_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false });
+      
+      if (activitiesError) {
+        console.error('Error fetching activities:', activitiesError);
+      } else {
+        setActivities(activitiesData || []);
+      }
+      
+      // Fetch streaks
+      const { data: streaksData, error: streaksError } = await supabase
+        .from("health_streaks")
+        .select("*")
+        .eq("user_id", user.id);
+      
+      if (streaksError) {
+        console.error('Error fetching streaks:', streaksError);
+      } else {
+        setStreaks(streaksData || []);
+      }
+      
+      setLoading(false);
+    }
+    
+    fetchData();
+  }, [router]);
 
-  const { data: activities } = await supabase
-    .from("health_activities")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("completed_at", { ascending: false });
-
-  const { data: streaks } = await supabase
-    .from("health_streaks")
-    .select("*")
-    .eq("user_id", user.id);
+  // Function to handle userId being possibly undefined
+  const getUserId = (): string => {
+    if (!user?.id) {
+      return ""; // Fallback empty string
+    }
+    return user.id;
+  };
 
   return (
     <SubscriptionCheck>
-      <DashboardNavbar />
+      <DashboardNavbar user={user} />
       <main className="w-full">
         <div className="container mx-auto px-4 py-8 flex flex-col gap-8">
           {/* Header Section */}
@@ -43,12 +87,14 @@ export default async function TrackerPage() {
                 Log and monitor your daily health activities
               </p>
             </div>
-            <ActivityForm userId={user.id}>
-              <Button className="flex items-center gap-2">
-                <PlusCircle size={16} />
-                Log New Activity
-              </Button>
-            </ActivityForm>
+            {user && (
+              <ActivityForm userId={getUserId()}>
+                <Button className="flex items-center gap-2">
+                  <PlusCircle size={16} />
+                  Log New Activity
+                </Button>
+              </ActivityForm>
+            )}
           </header>
 
           {/* Streaks Section */}
@@ -58,7 +104,7 @@ export default async function TrackerPage() {
               Your Activity Streaks
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {streaks && streaks.length > 0 ? (
+              {!loading && streaks.length > 0 ? (
                 streaks.map((streak) => (
                   <StreakDisplay key={streak.id} streak={streak} />
                 ))
@@ -79,19 +125,23 @@ export default async function TrackerPage() {
                 <ActivitySquare className="h-5 w-5 text-primary" />
                 Recent Activities
               </h2>
-              <ActivityForm userId={user.id}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <PlusCircle size={14} />
-                  Log Activity
-                </Button>
-              </ActivityForm>
+              {user && (
+                <ActivityForm userId={getUserId()}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <PlusCircle size={14} />
+                    Log Activity
+                  </Button>
+                </ActivityForm>
+              )}
             </div>
 
-            {activities && activities.length > 0 ? (
+            {loading ? (
+              <div className="text-center py-12">Loading your activity data...</div>
+            ) : activities.length > 0 ? (
               <ActivityList activities={activities} />
             ) : (
               <div className="bg-muted/50 rounded-xl p-8 text-center">
@@ -105,12 +155,14 @@ export default async function TrackerPage() {
                   Start tracking your health journey by logging your first
                   activity
                 </p>
-                <ActivityForm userId={user.id}>
-                  <Button className="flex items-center gap-2">
-                    <PlusCircle size={16} />
-                    Log Your First Activity
-                  </Button>
-                </ActivityForm>
+                {user && (
+                  <ActivityForm userId={getUserId()}>
+                    <Button className="flex items-center gap-2">
+                      <PlusCircle size={16} />
+                      Log Your First Activity
+                    </Button>
+                  </ActivityForm>
+                )}
               </div>
             )}
           </section>

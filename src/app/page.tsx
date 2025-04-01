@@ -1,8 +1,12 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Hero from "@/components/hero";
 import Navbar from "@/components/navbar";
 import PricingCard from "@/components/pricing-card";
 import Footer from "@/components/footer";
-import { createClient } from "../../supabase/server";
+import { createClient } from '@/utils/supabase/client';
+import AuthRedirect from '@/components/auth-redirect';
 import {
   ArrowUpRight,
   CheckCircle2,
@@ -17,19 +21,46 @@ import {
   Dumbbell,
   Utensils,
 } from "lucide-react";
+import { Logo } from '@/components/ui/logo';
 
-export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function Home() {
+  const [user, setUser] = useState(null);
+  const [plans, setPlans] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const { data: plans, error } = await supabase.functions.invoke(
-    "supabase-functions-get-plans",
-  );
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const supabase = createClient();
+        
+        // Get user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (!userError) {
+          setUser(user);
+        }
+        
+        // Get plans
+        const { data: plansData, error: plansError } = await supabase.functions.invoke(
+          "supabase-functions-get-plans",
+        );
+        if (!plansError) {
+          setPlans(plansData);
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading(false);
+      }
+    }
+    
+    fetchData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <AuthRedirect />
+      
       <Navbar />
       <Hero />
 
@@ -263,7 +294,7 @@ export default async function Home() {
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans?.map((item: any) => (
+            {plans?.map((item) => (
               <PricingCard key={item.id} item={item} user={user} />
             ))}
           </div>

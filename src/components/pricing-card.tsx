@@ -9,7 +9,7 @@ import {
     CardHeader,
     CardTitle
 } from "./ui/card";
-import { supabase } from "../../supabase/supabase";
+import { createClient } from '@/utils/supabase/client';
 
 export default function PricingCard({ item, user }: {
     item: any,
@@ -25,7 +25,7 @@ export default function PricingCard({ item, user }: {
 
 
         try {
-            const { data, error } = await supabase.functions.invoke('supabase-functions-create-checkout', {
+            const { data, error } = await createClient().functions.invoke('supabase-functions-create-checkout', {
                 body: {
                     price_id: priceId,
                     user_id: user.id,

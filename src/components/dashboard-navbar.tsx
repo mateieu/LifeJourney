@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { createClient } from "../../supabase/client";
+import { createClient } from "@/utils/supabase/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,11 +16,17 @@ import {
   Lightbulb,
   BarChart,
   LayoutDashboard,
+  LineChart,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import UserProfile from "./user-profile";
+import { User } from '@supabase/supabase-js';
 
-export default function DashboardNavbar() {
-  const supabase = createClient();
+interface DashboardNavbarProps {
+  user: User | null;
+}
+
+export default function DashboardNavbar({ user }: DashboardNavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -76,62 +82,22 @@ export default function DashboardNavbar() {
                 Suggestions
               </Button>
             </Link>
+            <Link href="/dashboard/progress" prefetch>
+              <Button
+                variant={
+                  pathname === "/dashboard/progress" ? "default" : "ghost"
+                }
+                size="sm"
+                className="flex items-center gap-1.5"
+              >
+                <LineChart className="h-4 w-4" />
+                Progress
+              </Button>
+            </Link>
           </div>
         </div>
         <div className="flex gap-4 items-center">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <UserCircle className="h-6 w-6" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem asChild>
-                <Link
-                  href="/dashboard"
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <LayoutDashboard className="h-4 w-4" />
-                  Dashboard
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link
-                  href="/dashboard/goals"
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <Target className="h-4 w-4" />
-                  Goals
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link
-                  href="/dashboard/tracker"
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <BarChart className="h-4 w-4" />
-                  Activity Tracker
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link
-                  href="/dashboard/suggestions"
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <Lightbulb className="h-4 w-4" />
-                  Suggestions
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  router.push("/");
-                }}
-              >
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {user && <UserProfile user={user} />}
         </div>
       </div>
     </nav>
