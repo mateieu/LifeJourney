@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import DashboardNavbar from "@/components/dashboard-navbar";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
@@ -24,58 +24,83 @@ type Activity = Tables<"health_activities">;
 type Goal = Tables<"health_goals">;
 type Streak = Tables<"health_streaks">;
 
-export default function ProgressPage() {
+interface HealthActivity {
+  id: string;
+  user_id: string;
+  activity_type: string;
+  value: number;
+  completed_at: string;
+}
+
+interface ActivityStats {
+  totalActivities: number;
+  activityDistribution: Record<string, number>;
+  recentActivities: HealthActivity[];
+}
+
+export default function ProgressPage({ defaultTab = 'overview' }: { defaultTab?: string }) {
   const [user, setUser] = useState<User | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activities, setActivities] = useState<HealthActivity[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [streaks, setStreaks] = useState<Streak[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const router = useRouter();
 
-  useEffect(() => {
-    async function fetchData() {
+  const fetchActivities = useCallback(async () => {
+    try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        router.push('/sign-in');
+        setError('User not authenticated');
         return;
       }
-      
-      setUser(user);
-      
-      // Fetch all data in parallel
-      const [activitiesResponse, goalsResponse, streaksResponse] = await Promise.all([
-        supabase
-          .from('health_activities')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('completed_at', { ascending: false }),
-        supabase
-          .from('health_goals')
-          .select('*')
-          .eq('user_id', user.id),
-        supabase
-          .from('health_streaks')
-          .select('*')
-          .eq('user_id', user.id)
-      ]);
-      
-      setActivities(activitiesResponse.data || []);
-      setGoals(goalsResponse.data || []);
-      setStreaks(streaksResponse.data || []);
+
+      const { data, error: activitiesError } = await supabase
+        .from('health_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false });
+
+      if (activitiesError) throw activitiesError;
+
+      if (!data || data.length === 0) {
+        setError('No activities found');
+        return;
+      }
+
+      setActivities(data);
+    } catch (err) {
+      setError('Failed to fetch data');
+    } finally {
       setLoading(false);
     }
-    
-    fetchData();
-  }, [router]);
+  }, []);
 
-  // Calculate total activities by type
-  const activityCounts = activities.reduce((acc, activity) => {
-    const type = activity.activity_type;
-    acc[type] = (acc[type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  useEffect(() => {
+    fetchActivities();
+    
+    if (defaultTab && defaultTab !== activeTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [fetchActivities, defaultTab, activeTab]);
+
+  const calculateStats = useCallback((): ActivityStats => {
+    const totalActivities = activities.length;
+    const activityDistribution = activities.reduce((acc, activity) => {
+      acc[activity.activity_type] = (acc[activity.activity_type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const recentActivities = activities.slice(0, 5);
+
+    return {
+      totalActivities,
+      activityDistribution,
+      recentActivities
+    };
+  }, [activities]);
 
   // Calculate progress percentages for all goals
   const goalProgress = goals.map(goal => {
@@ -93,6 +118,31 @@ export default function ProgressPage() {
     (b.current_streak || 0) - (a.current_streak || 0)
   ).slice(0, 3);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div 
+          className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" 
+          role="status"
+          data-testid="loading-indicator"
+          aria-label="Loading"
+        />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="p-6 m-4">
+        <div className="text-center text-gray-500" role="alert">
+          {error}
+        </div>
+      </Card>
+    );
+  }
+
+  const stats = calculateStats();
+
   return (
     <SubscriptionCheck>
       <DashboardNavbar user={user} />
@@ -105,14 +155,42 @@ export default function ProgressPage() {
             </p>
           </header>
 
-          <Tabs defaultValue="overview" className="space-y-6">
+          <Tabs 
+            value={activeTab} 
+            onValueChange={setActiveTab}
+            className="space-y-6"
+            defaultValue={defaultTab}
+          >
             <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="goals">Goals</TabsTrigger>
-              <TabsTrigger value="activities">Activities</TabsTrigger>
+              <TabsTrigger 
+                value="overview" 
+                aria-controls="overview-tab"
+                data-testid="overview-tab-trigger"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger 
+                value="goals" 
+                aria-controls="goals-tab"
+                data-testid="goals-tab-trigger"
+              >
+                Goals
+              </TabsTrigger>
+              <TabsTrigger 
+                value="activities" 
+                aria-controls="activities-tab"
+                data-testid="activities-tab-trigger"
+              >
+                Activities
+              </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="overview" className="space-y-6">
+            <TabsContent 
+              value="overview" 
+              id="overview-tab" 
+              className="space-y-6"
+              data-testid="overview-content"
+            >
               {/* Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card>
@@ -137,10 +215,10 @@ export default function ProgressPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold">
-                      {activities.length}
+                      {stats.totalActivities}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      Across {Object.keys(activityCounts).length} different types
+                      Across {Object.keys(stats.activityDistribution).length} different types
                     </div>
                   </CardContent>
                 </Card>
@@ -230,10 +308,16 @@ export default function ProgressPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="goals" className="space-y-6">
+            <TabsContent 
+              value="goals" 
+              id="goals-tab" 
+              className="space-y-6"
+              data-testid="goals-content"
+              forceMount={activeTab === "goals" ? true : undefined}
+            >
               <Card>
                 <CardHeader>
-                  <CardTitle>Goal Completion</CardTitle>
+                  <CardTitle data-testid="goal-completion-title">Goal Completion</CardTitle>
                   <CardDescription>Overview of your health goals progress</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -298,27 +382,40 @@ export default function ProgressPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="activities" className="space-y-6">
+            <TabsContent 
+              value="activities" 
+              id="activities-tab" 
+              className="space-y-6"
+              data-testid="activities-content"
+              forceMount={activeTab === "activities" ? true : undefined}
+            >
               <Card>
                 <CardHeader>
-                  <CardTitle>Activity Summary</CardTitle>
+                  <CardTitle id="activity-summary-title">Activity Summary</CardTitle>
                   <CardDescription>Overview of your recorded health activities</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div className="bg-muted/30 p-6 rounded-lg">
                       <h3 className="text-lg font-medium mb-4">Activity Distribution</h3>
-                      {Object.keys(activityCounts).length > 0 ? (
+                      {Object.keys(stats.activityDistribution).length > 0 ? (
                         <div className="space-y-3">
-                          {Object.entries(activityCounts)
+                          {Object.entries(stats.activityDistribution)
                             .sort(([, a], [, b]) => b - a)
                             .map(([type, count]) => (
                               <div key={type} className="space-y-1">
                                 <div className="flex justify-between text-sm">
                                   <span>{type.charAt(0).toUpperCase() + type.slice(1)}</span>
-                                  <span>{count} entries</span>
+                                  <span>{count} {count === 1 ? 'entry' : 'entries'}</span>
                                 </div>
-                                <Progress value={(count / activities.length) * 100} className="h-2" />
+                                <Progress 
+                                  value={(count / stats.totalActivities) * 100} 
+                                  className="h-2" 
+                                  role="progressbar"
+                                  aria-valuenow={(count / stats.totalActivities) * 100}
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                />
                               </div>
                             ))}
                         </div>
@@ -330,18 +427,27 @@ export default function ProgressPage() {
                     </div>
 
                     <div className="bg-muted/30 p-6 rounded-lg">
-                      <h3 className="text-lg font-medium mb-4">Recent Activity</h3>
-                      {activities.length > 0 ? (
+                      <h3 className="text-lg font-medium mb-4" data-testid="recent-activity-heading">
+                        Recent Activity
+                      </h3>
+                      {stats.recentActivities.length > 0 ? (
                         <div className="space-y-4">
-                          {activities.slice(0, 5).map(activity => (
-                            <div key={activity.id} className="flex items-center gap-3">
+                          {stats.recentActivities.map(activity => (
+                            <div 
+                              key={activity.id} 
+                              className="flex items-center gap-3"
+                              role="listitem"
+                              aria-label={`${activity.activity_type} activity`}
+                              data-testid={`activity-item-${activity.id}`}
+                            >
                               <div className="p-2 bg-primary/10 rounded-full">
                                 <Activity className="h-4 w-4 text-primary" />
                               </div>
                               <div className="flex-1">
                                 <div className="flex justify-between">
                                   <span className="font-medium">
-                                    {activity.activity_type.charAt(0).toUpperCase() + activity.activity_type.slice(1)}
+                                    {activity.activity_type.charAt(0).toUpperCase() + 
+                                     activity.activity_type.slice(1)}
                                   </span>
                                   <span className="text-xs text-muted-foreground">
                                     {activity.completed_at 
@@ -350,7 +456,13 @@ export default function ProgressPage() {
                                   </span>
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  {activity.value} {getUnitLabel(activity.activity_type)}
+                                  <span data-testid={`activity-value-${activity.id}`}>
+                                    {activity.value}
+                                  </span>
+                                  {' '}
+                                  <span data-testid={`activity-unit-${activity.id}`}>
+                                    {activity.activity_type === 'walking' ? 'steps' : 'units'}
+                                  </span>
                                 </div>
                               </div>
                             </div>
