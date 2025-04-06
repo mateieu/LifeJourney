@@ -1,65 +1,47 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 
 interface SubscriptionCheckProps {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }
 
 export function SubscriptionCheck({ children }: SubscriptionCheckProps) {
-    const [isLoading, setIsLoading] = useState(true);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const router = useRouter();
-
-    useEffect(() => {
-        async function checkAuth() {
-            const supabase = createClient();
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-                router.push('/sign-in');
-                return;
-            }
-
-            // Uncomment when ready to implement subscription checks
-            // try {
-            //   const { data: subscription, error } = await supabase
-            //     .from("subscriptions")
-            //     .select("*")
-            //     .eq("user_id", user.id)
-            //     .eq("status", "active")
-            //     .single();
-            //
-            //   if (error || !subscription) {
-            //     router.push('/pricing');
-            //     return;
-            //   }
-            // } catch (error) {
-            //   console.error("Subscription check error:", error);
-            //   router.push('/pricing');
-            //   return;
-            // }
-
-            setIsAuthenticated(true);
-            setIsLoading(false);
+  const [isChecking, setIsChecking] = useState(true);
+  const router = useRouter();
+  
+  useEffect(() => {
+    const checkSubscription = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          // If not logged in, redirect to login
+          router.push('/login');
+          return;
         }
-
-        checkAuth();
-    }, [router]);
-
-    if (isLoading) {
-        return <div className="flex min-h-screen items-center justify-center">Checking access...</div>;
-    }
-
-    if (!isAuthenticated) {
-        return null; // Will redirect in the useEffect
-    }
-
+        
+        // Simple check complete, allow rendering
+        setIsChecking(false);
+      } catch (error) {
+        console.error("Error checking subscription:", error);
+        setIsChecking(false);
+      }
+    };
+    
+    checkSubscription();
+  }, [router]);
+  
+  if (isChecking) {
     return (
-        <>
-            {isAuthenticated && children}
-        </>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="h-8 w-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+      </div>
     );
+  }
+  
+  return <>{children}</>;
 }
