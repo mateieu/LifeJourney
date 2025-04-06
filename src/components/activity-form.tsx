@@ -169,7 +169,7 @@ export function ActivityForm({ userId, children }: ActivityFormProps) {
       }
 
       // Close dialog and refresh page
-      setOpen(false);
+    setOpen(false);
       form.reset();
       router.refresh();
       window.location.reload(); // Force refresh to see new data
@@ -200,27 +200,27 @@ export function ActivityForm({ userId, children }: ActivityFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Activity Type</FormLabel>
-                  <Select
+            <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
-                  >
+            >
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select activity type" />
-                      </SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select activity type" />
+              </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="walking">Walking</SelectItem>
-                      <SelectItem value="running">Running</SelectItem>
-                      <SelectItem value="cycling">Cycling</SelectItem>
-                      <SelectItem value="swimming">Swimming</SelectItem>
+              <SelectContent>
+                <SelectItem value="walking">Walking</SelectItem>
+                <SelectItem value="running">Running</SelectItem>
+                <SelectItem value="cycling">Cycling</SelectItem>
+                <SelectItem value="swimming">Swimming</SelectItem>
                       <SelectItem value="yoga">Yoga</SelectItem>
-                      <SelectItem value="meditation">Meditation</SelectItem>
+                <SelectItem value="meditation">Meditation</SelectItem>
                       <SelectItem value="strength">Strength Training</SelectItem>
-                      <SelectItem value="water">Water Intake</SelectItem>
-                      <SelectItem value="sleep">Sleep</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <SelectItem value="water">Water Intake</SelectItem>
+                <SelectItem value="sleep">Sleep</SelectItem>
+              </SelectContent>
+            </Select>
                   <FormDescription>
                     Choose the type of activity you completed
                   </FormDescription>
@@ -236,10 +236,10 @@ export function ActivityForm({ userId, children }: ActivityFormProps) {
                 <FormItem>
                   <FormLabel>Value</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
+            <Input
+              type="number"
                       step="0.01"
-                      placeholder="Enter value"
+              placeholder="Enter value"
                       {...field}
                     />
                   </FormControl>
@@ -291,7 +291,7 @@ export function ActivityForm({ userId, children }: ActivityFormProps) {
                 <FormItem>
                   <FormLabel>Notes (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea
+            <Textarea
                       placeholder="Add any additional information"
                       {...field}
                     />
@@ -304,9 +304,9 @@ export function ActivityForm({ userId, children }: ActivityFormProps) {
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Saving..." : "Save Activity"}
-              </Button>
+            </Button>
             </DialogFooter>
-          </form>
+        </form>
         </Form>
       </DialogContent>
     </Dialog>

@@ -86,7 +86,7 @@ export function GoalForm({ userId, children }: GoalFormProps) {
       if (error) throw error;
 
       // Close dialog and refresh page
-      setOpen(false);
+    setOpen(false);
       form.reset();
       router.refresh();
       window.location.reload(); // Force refresh to see new data
@@ -122,22 +122,22 @@ export function GoalForm({ userId, children }: GoalFormProps) {
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select goal type" />
-                      </SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select goal type" />
+              </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="steps">Daily Steps</SelectItem>
+              <SelectContent>
+                <SelectItem value="steps">Daily Steps</SelectItem>
                       <SelectItem value="walking">Walking Distance</SelectItem>
                       <SelectItem value="running">Running Distance</SelectItem>
                       <SelectItem value="cycling">Cycling Distance</SelectItem>
-                      <SelectItem value="water">Water Intake</SelectItem>
-                      <SelectItem value="sleep">Sleep Hours</SelectItem>
+                <SelectItem value="water">Water Intake</SelectItem>
+                <SelectItem value="sleep">Sleep Hours</SelectItem>
                       <SelectItem value="meditation">Meditation Minutes</SelectItem>
                       <SelectItem value="workout">Workout Sessions</SelectItem>
                       <SelectItem value="weight_loss">Weight Loss</SelectItem>
-                    </SelectContent>
-                  </Select>
+              </SelectContent>
+            </Select>
                   <FormDescription>
                     Choose the type of health goal you want to set
                   </FormDescription>
@@ -153,10 +153,10 @@ export function GoalForm({ userId, children }: GoalFormProps) {
                 <FormItem>
                   <FormLabel>Target Value</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
+            <Input
+              type="number"
                       step="0.01"
-                      placeholder="Enter target value"
+              placeholder="Enter target value"
                       {...field}
                     />
                   </FormControl>
@@ -204,9 +204,9 @@ export function GoalForm({ userId, children }: GoalFormProps) {
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Goal"}
-              </Button>
+            </Button>
             </DialogFooter>
-          </form>
+        </form>
         </Form>
       </DialogContent>
     </Dialog>

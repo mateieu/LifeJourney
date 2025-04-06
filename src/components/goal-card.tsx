@@ -95,7 +95,7 @@ export function GoalCard({ goal }: GoalCardProps) {
       if (error) throw error;
       
       // Close dialog and refresh
-      setOpen(false);
+    setOpen(false);
       router.refresh();
       window.location.reload(); // Force a page refresh to show updated data
     } catch (error) {
