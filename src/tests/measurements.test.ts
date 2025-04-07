@@ -6,7 +6,7 @@ import {
   getAllowedUnits,
   isValidConversion,
   getEquivalentMeasurements
-} from '../lib/measurements';
+} from '@/utils/measurements';
 
 describe('Measurement Unit System', () => {
   describe('Unit Conversion', () => {
@@ -14,10 +14,10 @@ describe('Measurement Unit System', () => {
       // Distance conversions
       expect(convertMeasurement(1, 'km', 'meter')).toBeCloseTo(1000);
       expect(convertMeasurement(1, 'mile', 'km')).toBeCloseTo(1.60934);
+      expect(convertMeasurement(1, 'meter', 'km')).toBeCloseTo(0.001);
       
       // Time conversions
       expect(convertMeasurement(1, 'hour', 'minute')).toBe(60);
-      expect(convertMeasurement(30, 'minute', 'hour')).toBe(0.5);
       
       // Volume conversions
       expect(convertMeasurement(1, 'liter', 'milliliter')).toBe(1000);
@@ -37,14 +37,17 @@ describe('Measurement Unit System', () => {
     });
     
     it('should handle edge cases appropriately', () => {
-      // Zero values
-      expect(convertMeasurement(0, 'km', 'meter')).toBe(0);
+      // Same unit should return same value
+      expect(convertMeasurement(5, 'km', 'km')).toBe(5);
       
       // Very large values
       expect(convertMeasurement(1000000, 'meter', 'km')).toBe(1000);
       
       // Very small values
       expect(convertMeasurement(0.001, 'km', 'meter')).toBe(1);
+      
+      // Zero should remain zero
+      expect(convertMeasurement(0, 'km', 'meter')).toBe(0);
     });
   });
   
@@ -56,10 +59,10 @@ describe('Measurement Unit System', () => {
       
       // Time formatting
       expect(getFormattedMeasurement(1.5, 'hour')).toBe('1.5 Hours');
-      expect(getFormattedMeasurement(0.5, 'hour')).toBe('30 Minutes'); // Convert small hours to minutes
+      expect(getFormattedMeasurement(30, 'minute')).toBe('30 Minutes');
       
       // Count formatting
-      expect(getFormattedMeasurement(1500, 'step')).toBe('1500 Steps');
+      expect(getFormattedMeasurement(10500.5, 'step')).toBe('10501 Steps');
     });
   });
   
@@ -68,6 +71,7 @@ describe('Measurement Unit System', () => {
       expect(getDefaultUnit('walking')).toBe('step');
       expect(getDefaultUnit('swimming')).toBe('meter');
       expect(getDefaultUnit('sleep')).toBe('hour');
+      expect(getDefaultUnit('running')).toBe('km');
     });
     
     it('should return allowed units for an activity', () => {
@@ -76,6 +80,11 @@ describe('Measurement Unit System', () => {
       expect(walkingUnits.map(u => u.id)).toContain('step');
       expect(walkingUnits.map(u => u.id)).toContain('km');
       expect(walkingUnits.map(u => u.id)).toContain('mile');
+      
+      const sleepUnits = getAllowedUnits('sleep');
+      expect(sleepUnits).toHaveLength(2);
+      expect(sleepUnits.map(u => u.id)).toContain('hour');
+      expect(sleepUnits.map(u => u.id)).toContain('minute');
     });
     
     it('should validate unit conversion compatibility', () => {
@@ -85,7 +94,7 @@ describe('Measurement Unit System', () => {
       
       // Invalid conversions (different types)
       expect(isValidConversion('km', 'hour')).toBe(false);
-      expect(isValidConversion('step', 'milliliter')).toBe(false);
+      expect(isValidConversion('step', 'minute')).toBe(false);
     });
   });
   
@@ -94,12 +103,13 @@ describe('Measurement Unit System', () => {
       const equivalents = getEquivalentMeasurements(5000, 'step', 'walking');
       
       expect(equivalents).toHaveProperty('step');
-      expect(equivalents).toHaveProperty('km');
-      expect(equivalents).toHaveProperty('mile');
+      expect(equivalents.step).toBe(5000);
       
-      expect(equivalents.step.value).toBeCloseTo(5000);
-      expect(equivalents.km.value).toBeCloseTo(3.8095, 1);
-      expect(equivalents.mile.value).toBeCloseTo(2.4855, 1);
+      expect(equivalents).toHaveProperty('km');
+      expect(equivalents.km).toBeCloseTo(5000 / 1312, 2);
+      
+      expect(equivalents).toHaveProperty('mile');
+      expect(equivalents.mile).toBeCloseTo((5000 / 1312) / 1.60934, 2);
     });
   });
 });

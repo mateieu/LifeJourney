@@ -136,7 +136,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/components/dashboard-navbar', () => ({
-  default: vi.fn(() => <nav data-testid="dashboard-navbar">DashboardNavbar</nav>)
+  DashboardNavbar: ({ user }: { user: any }) => <div data-testid="dashboard-navbar">Dashboard Navbar</div>
 }));
 
 vi.mock('@/components/subscription-check', () => ({

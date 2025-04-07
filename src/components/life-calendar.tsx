@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addDays, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { CalendarIcon, Clock, Moon, Plus, Trash2, Activity, Heart, Utensils, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,38 +70,35 @@ type DayData = {
   sleep: SleepData | null;
   health: HealthData[];
   nutrition: NutritionData[];
+  hasMentalHealthEntry: boolean;
+  mood: number | null;
+  energy: number | null;
+  stress: number | null;
 };
 
-// Define types for the different data entries
-type CalendarData = {
-  date: Date;
-  sleep?: {
-    id: string;
-    duration: number;
-    quality: number;
-  };
-  nutrition?: {
-    id: string;
-    calories: number;
-    entries: number;
-  };
-  activity?: {
-    id: string;
-    type: string;
-    duration: number;
-    calories: number;
-  };
+// Define interfaces for your data
+interface CalendarDayData {
+  date?: Date;
+  mood?: number;
+  energy?: number;
+  stress?: number;
+  hasSleepEntry?: boolean;
+  sleepDuration?: number;
+  sleepQuality?: number;
+  hasActivityEntry?: boolean;
+  activityDuration?: number;
+  activityType?: string;
+  hasNutritionEntry?: boolean;
+  caloriesConsumed?: number;
+  waterIntake?: number;
+  hasMentalHealthEntry?: boolean;
   metrics?: {
     id: string;
     types: string[];
   };
-  mentalHealth?: {
-    id: string;
-    mood: number;
-    energy: number;
-    stress: number;
-  };
-};
+}
+
+type CalendarData = Record<string, CalendarDayData>;
 
 export function LifeCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -124,7 +121,7 @@ export function LifeCalendar() {
     color: "#3b82f6"
   });
   const [date, setDate] = useState<Date>(new Date());
-  const [calendarData, setCalendarData] = useState<Record<string, CalendarData>>({});
+  const [calendarData, setCalendarData] = useState<CalendarData>({});
   const [activeTab, setActiveTab] = useState("overview");
   
   const { toast } = useToast();
@@ -225,7 +222,11 @@ export function LifeCalendar() {
       activities: dayActivities,
       sleep: daySleep,
       health: dayHealth,
-      nutrition: dayNutrition
+      nutrition: dayNutrition,
+      hasMentalHealthEntry: false,
+      mood: null,
+      energy: null,
+      stress: null,
     });
     
   }, [selectedDate, events, activities, sleep, health, nutrition]);
@@ -570,7 +571,7 @@ export function LifeCalendar() {
       // Fetch mental health data
       const { data: mentalHealthData, error: mentalHealthError } = await supabase
         .from('mental_health_entries')
-        .select('id, date, mood_score, energy_level, stress_level')
+        .select('*')
         .eq('user_id', user.id)
         .gte('date', startStr)
         .lte('date', endStr);
@@ -578,7 +579,7 @@ export function LifeCalendar() {
       if (mentalHealthError) throw mentalHealthError;
       
       // Process data for calendar
-      const data: Record<string, CalendarData> = {};
+      const data: Record<string, CalendarDayData> = {};
       
       // Initialize all days in the month
       let currentDate = new Date(firstDay);
@@ -594,11 +595,9 @@ export function LifeCalendar() {
       sleepData?.forEach(entry => {
         const dateStr = entry.date;
         if (data[dateStr]) {
-          data[dateStr].sleep = {
-            id: entry.id,
-            duration: entry.duration_minutes / 60, // Convert to hours
-            quality: entry.quality
-          };
+          data[dateStr].sleepDuration = entry.duration_minutes / 60; // Convert to hours
+          data[dateStr].sleepQuality = entry.quality;
+          data[dateStr].hasSleepEntry = true;
         }
       });
       
@@ -606,16 +605,8 @@ export function LifeCalendar() {
       nutritionData?.forEach(entry => {
         const dateStr = entry.date;
         if (data[dateStr]) {
-          if (!data[dateStr].nutrition) {
-            data[dateStr].nutrition = {
-              id: entry.id,
-              calories: entry.calories,
-              entries: 1
-            };
-          } else {
-            data[dateStr].nutrition.calories += entry.calories;
-            data[dateStr].nutrition.entries += 1;
-          }
+          data[dateStr].caloriesConsumed = entry.calories;
+          data[dateStr].hasNutritionEntry = true;
         }
       });
       
@@ -623,12 +614,9 @@ export function LifeCalendar() {
       activityData?.forEach(entry => {
         const dateStr = entry.date;
         if (data[dateStr]) {
-          data[dateStr].activity = {
-            id: entry.id,
-            type: entry.type,
-            duration: entry.duration_minutes / 60, // Convert to hours
-            calories: entry.calories_burned
-          };
+          data[dateStr].activityDuration = entry.duration_minutes / 60; // Convert to hours
+          data[dateStr].activityType = entry.type;
+          data[dateStr].hasActivityEntry = true;
         }
       });
       
@@ -653,12 +641,10 @@ export function LifeCalendar() {
       mentalHealthData?.forEach(entry => {
         const dateStr = entry.date;
         if (data[dateStr]) {
-          data[dateStr].mentalHealth = {
-            id: entry.id,
-            mood: entry.mood_score,
-            energy: entry.energy_level, 
-            stress: entry.stress_level
-          };
+          data[dateStr].mood = entry.mood_score;
+          data[dateStr].energy = entry.energy_level; 
+          data[dateStr].stress = entry.stress_level;
+          data[dateStr].hasMentalHealthEntry = true;
         }
       });
       
@@ -671,8 +657,8 @@ export function LifeCalendar() {
       } else {
         // Find first date with any data
         const firstDataDate = Object.keys(data).find(dateStr => 
-          data[dateStr].sleep || data[dateStr].nutrition || 
-          data[dateStr].activity || data[dateStr].metrics || data[dateStr].mentalHealth
+          data[dateStr].sleepDuration || data[dateStr].caloriesConsumed || 
+          data[dateStr].activityDuration || data[dateStr].metrics || data[dateStr].hasMentalHealthEntry
         );
         
         if (firstDataDate) {
@@ -692,16 +678,21 @@ export function LifeCalendar() {
   };
   
   const renderDayContent = (day: Date) => {
+    // Check if day is a valid Date object
+    if (!(day instanceof Date) || isNaN(day.getTime())) {
+      return null;
+    }
+    
     const dateStr = format(day, 'yyyy-MM-dd');
     const data = calendarData[dateStr];
     
     if (!data) return null;
     
-    const hasSleep = !!data.sleep;
-    const hasNutrition = !!data.nutrition;
-    const hasActivity = !!data.activity;
+    const hasSleep = !!data.sleepDuration;
+    const hasNutrition = !!data.caloriesConsumed;
+    const hasActivity = !!data.activityDuration;
     const hasMetrics = !!data.metrics;
-    const hasMentalHealth = !!data.mentalHealth;
+    const hasMentalHealth = !!data.hasMentalHealthEntry;
     
     return (
       <div className="w-full h-full flex flex-col items-center">
@@ -766,7 +757,31 @@ export function LifeCalendar() {
               onMonthChange={setDate}
               className="rounded-md border"
               components={{
-                DayContent: ({ day }) => renderDayContent(day),
+                Day: (props: any) => {
+                  try {
+                    // This is a safe workaround since the type is from a third-party lib
+                    const day = props.date as Date;
+                    if (!(day instanceof Date) || isNaN(day.getTime())) {
+                      return <div className={props.className}>{props.children}</div>;
+                    }
+                    
+                    return (
+                      <div 
+                        className={cn(
+                          props.className,
+                          "relative"
+                        )}
+                        {...props}
+                      >
+                        {props.children}
+                        {renderDayContent(day)}
+                      </div>
+                    );
+                  } catch (error) {
+                    console.error("Error rendering calendar day:", error);
+                    return <div className={props.className}>{props.children}</div>;
+                  }
+                }
               }}
             />
             <div className="flex items-center justify-center space-x-4 mt-4">
@@ -796,8 +811,8 @@ export function LifeCalendar() {
               {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'No Date Selected'}
             </CardTitle>
             <CardDescription>
-              {selectedDateData?.sleep || selectedDateData?.nutrition || 
-               selectedDateData?.activity || selectedDateData?.metrics || selectedDateData?.mentalHealth 
+              {selectedDateData?.sleepDuration || selectedDateData?.caloriesConsumed || 
+               selectedDateData?.activityDuration || selectedDateData?.metrics || selectedDateData?.hasMentalHealthEntry 
                 ? 'Health data for selected day' 
                 : 'No health data recorded'}
             </CardDescription>
@@ -812,15 +827,15 @@ export function LifeCalendar() {
               </TabsList>
               
               <TabsContent value="overview" className="space-y-4">
-                {(!selectedDateData?.sleep && !selectedDateData?.nutrition && 
-                  !selectedDateData?.activity && !selectedDateData?.metrics && !selectedDateData?.mentalHealth) ? (
+                {(!selectedDateData?.sleepDuration && !selectedDateData?.caloriesConsumed && 
+                  !selectedDateData?.activityDuration && !selectedDateData?.metrics && !selectedDateData?.hasMentalHealthEntry) ? (
                   <div className="text-center py-6">
                     <CalendarDays className="h-12 w-12 mx-auto text-muted-foreground opacity-30 mb-2" />
                     <p className="text-sm text-muted-foreground">No health data recorded for this day</p>
                     <div className="flex justify-center space-x-2 mt-4">
                       <Button size="sm" variant="outline" onClick={() => {
                         // Route to sleep tracker
-                        window.location.href = '/dashboard/sleep';
+                        window.location.href = `/dashboard/sleep?date=${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}`;
                       }}>
                         <Moon className="h-4 w-4 mr-1" />
                         Log Sleep
@@ -836,7 +851,7 @@ export function LifeCalendar() {
                   </div>
                 ) : (
                   <>
-                    {selectedDateData?.sleep && (
+                    {selectedDateData?.sleepDuration && (
                       <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
                         <div className="flex items-center">
                           <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
@@ -845,17 +860,17 @@ export function LifeCalendar() {
                           <div>
                             <div className="text-sm font-medium">Sleep</div>
                             <div className="text-xs text-muted-foreground">
-                              {Math.floor(selectedDateData.sleep.duration)}h {Math.round((selectedDateData.sleep.duration % 1) * 60)}m
+                              {Math.floor(selectedDateData.sleepDuration || 0)}h {Math.round(((selectedDateData.sleepDuration || 0) % 1) * 60)}m
                             </div>
                           </div>
                         </div>
                         <Badge variant="outline" className="bg-blue-100/50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 hover:bg-blue-100">
-                          {selectedDateData.sleep.quality}/5
+                          {selectedDateData.sleepQuality}/5
                         </Badge>
                       </div>
                     )}
                     
-                    {selectedDateData?.nutrition && (
+                    {selectedDateData?.caloriesConsumed && (
                       <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
                         <div className="flex items-center">
                           <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mr-3">
@@ -864,26 +879,26 @@ export function LifeCalendar() {
                           <div>
                             <div className="text-sm font-medium">Nutrition</div>
                             <div className="text-xs text-muted-foreground">
-                              {selectedDateData.nutrition.calories} calories
+                              {selectedDateData.caloriesConsumed} calories
                             </div>
                           </div>
                         </div>
                         <Badge variant="outline" className="bg-green-100/50 text-green-700 dark:bg-green-900/50 dark:text-green-400 hover:bg-green-100">
-                          {selectedDateData.nutrition.entries} meal{selectedDateData.nutrition.entries !== 1 ? 's' : ''}
+                          {selectedDateData.caloriesConsumed} cal
                         </Badge>
                       </div>
                     )}
                     
-                    {selectedDateData?.activity && (
+                    {selectedDateData?.activityDuration && (
                       <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
                         <div className="flex items-center">
                           <div className="h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center mr-3">
                             <Activity className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                           </div>
                           <div>
-                            <div className="text-sm font-medium">{selectedDateData.activity.type}</div>
+                            <div className="text-sm font-medium">{selectedDateData.activityType}</div>
                             <div className="text-xs text-muted-foreground">
-                              {selectedDateData.activity.duration}h • {selectedDateData.activity.calories} cal
+                              {selectedDateData.activityDuration}h • {selectedDateData.caloriesConsumed} cal
                             </div>
                           </div>
                         </div>
@@ -913,7 +928,7 @@ export function LifeCalendar() {
                       </div>
                     )}
                     
-                    {selectedDateData?.mentalHealth && (
+                    {selectedDateData?.hasMentalHealthEntry && (
                       <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
                         <div className="flex items-center">
                           <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mr-3">
@@ -922,7 +937,7 @@ export function LifeCalendar() {
                           <div>
                             <div className="text-sm font-medium">Mental Health</div>
                             <div className="text-xs text-muted-foreground">
-                              Mood: {selectedDateData.mentalHealth.mood}/5 • Stress: {selectedDateData.mentalHealth.stress}/5
+                              Mood: {selectedDateData.mood || 0}/5 • Stress: {selectedDateData.stress || 0}/5
                             </div>
                           </div>
                         </div>
@@ -936,7 +951,7 @@ export function LifeCalendar() {
               </TabsContent>
               
               <TabsContent value="sleep">
-                {selectedDateData?.sleep ? (
+                {selectedDateData?.sleepDuration ? (
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <div>
@@ -947,7 +962,7 @@ export function LifeCalendar() {
                               key={star} 
                               className={cn(
                                 "text-lg",
-                                star <= selectedDateData.sleep!.quality
+                                star <= (selectedDateData?.sleepQuality || 0)
                                   ? "text-yellow-500" 
                                   : "text-gray-300"
                               )}
@@ -960,7 +975,7 @@ export function LifeCalendar() {
                       <div className="text-right">
                         <h4 className="font-medium">Duration</h4>
                         <p className="text-2xl font-bold">
-                          {Math.floor(selectedDateData.sleep.duration)}h {Math.round((selectedDateData.sleep.duration % 1) * 60)}m
+                          {Math.floor(selectedDateData.sleepDuration || 0)}h {Math.round(((selectedDateData.sleepDuration || 0) % 1) * 60)}m
                         </p>
                       </div>
                     </div>
@@ -974,7 +989,7 @@ export function LifeCalendar() {
                     <p className="text-sm text-muted-foreground mb-4">No sleep data recorded for this day</p>
                     <Button onClick={() => {
                       // Route to sleep tracker with date pre-selected
-                      window.location.href = `/dashboard/sleep?date=${format(selectedDate, 'yyyy-MM-dd')}`;
+                      window.location.href = `/dashboard/sleep?date=${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}`;
                     }}>
                       <Plus className="h-4 w-4 mr-1" />
                       Log Sleep
@@ -984,16 +999,16 @@ export function LifeCalendar() {
               </TabsContent>
               
               <TabsContent value="nutrition">
-                {selectedDateData?.nutrition ? (
+                {selectedDateData?.caloriesConsumed ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-muted p-3 rounded-lg text-center">
                         <h4 className="text-sm font-medium text-muted-foreground">Total Calories</h4>
-                        <p className="text-2xl font-bold">{selectedDateData.nutrition.calories}</p>
+                        <p className="text-2xl font-bold">{selectedDateData.caloriesConsumed}</p>
                       </div>
                       <div className="bg-muted p-3 rounded-lg text-center">
-                        <h4 className="text-sm font-medium text-muted-foreground">Meals Logged</h4>
-                        <p className="text-2xl font-bold">{selectedDateData.nutrition.entries}</p>
+                        <h4 className="text-sm font-medium text-muted-foreground">Calories Burned</h4>
+                        <p className="text-2xl font-bold">{selectedDateData.caloriesConsumed} cal</p>
                       </div>
                     </div>
                     <Button className="w-full" asChild>
@@ -1006,7 +1021,7 @@ export function LifeCalendar() {
                     <p className="text-sm text-muted-foreground mb-4">No meal data recorded for this day</p>
                     <Button onClick={() => {
                       // Route to nutrition tracker with date pre-selected
-                      window.location.href = `/dashboard/nutrition?date=${format(selectedDate, 'yyyy-MM-dd')}`;
+                      window.location.href = `/dashboard/nutrition?date=${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}`;
                     }}>
                       <Plus className="h-4 w-4 mr-1" />
                       Log Meal
@@ -1016,23 +1031,23 @@ export function LifeCalendar() {
               </TabsContent>
               
               <TabsContent value="activity">
-                {selectedDateData?.activity ? (
+                {selectedDateData?.activityDuration ? (
                   <div className="space-y-4">
                     <div className="bg-orange-50 dark:bg-orange-950/30 p-4 rounded-lg">
                       <div className="flex items-center mb-3">
                         <Activity className="h-5 w-5 mr-2 text-orange-600 dark:text-orange-400" />
-                        <h4 className="font-medium text-orange-800 dark:text-orange-300">{selectedDateData.activity.type}</h4>
+                        <h4 className="font-medium text-orange-800 dark:text-orange-300">{selectedDateData.activityType}</h4>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <div className="text-xs text-muted-foreground">Duration</div>
                           <div className="font-bold">
-                            {Math.floor(selectedDateData.activity.duration)}h {Math.round((selectedDateData.activity.duration % 1) * 60)}m
+                            {Math.floor(selectedDateData.activityDuration)}h {Math.round((selectedDateData.activityDuration % 1) * 60)}m
                           </div>
                         </div>
                         <div>
                           <div className="text-xs text-muted-foreground">Calories Burned</div>
-                          <div className="font-bold">{selectedDateData.activity.calories} cal</div>
+                          <div className="font-bold">{selectedDateData.caloriesConsumed} cal</div>
                         </div>
                       </div>
                     </div>
@@ -1046,7 +1061,7 @@ export function LifeCalendar() {
                     <p className="text-sm text-muted-foreground mb-4">No activity data recorded for this day</p>
                     <Button onClick={() => {
                       // Route to activities tracker with date pre-selected
-                      window.location.href = `/dashboard/activities?date=${format(selectedDate, 'yyyy-MM-dd')}`;
+                      window.location.href = `/dashboard/activities?date=${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}`;
                     }}>
                       <Plus className="h-4 w-4 mr-1" />
                       Log Activity

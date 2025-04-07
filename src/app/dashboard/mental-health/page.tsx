@@ -3,13 +3,9 @@ import { MentalHealthTracker } from "@/components/mental-health-tracker";
 
 export const metadata: Metadata = {
   title: "Mental Health Tracker | LifeJourney",
-  description: "Track and monitor your mental wellbeing, mood, and stress levels",
+  description: "Track your mood, energy levels, and stress to improve mental wellbeing",
 };
 
 export default function MentalHealthPage() {
-  return (
-    <div className="container mx-auto py-6">
-      <MentalHealthTracker />
-    </div>
-  );
+  return <MentalHealthTracker />;
 } 
